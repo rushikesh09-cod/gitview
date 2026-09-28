@@ -896,3 +896,89 @@ select, input { font-family: inherit; }
   .stat-value { font-size: 1.1rem; }
   .favorites-grid { grid-template-columns: 1fr; }
 }
+
+/* ─── API Token Button in Navbar ────────────────────────────────────────── */
+.token-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 600;
+  background: rgba(139,92,246,0.12); color: var(--color-primary-light);
+  border: 1px solid rgba(139,92,246,0.25); cursor: pointer; transition: all 0.2s ease;
+}
+.token-btn:hover {
+  background: rgba(139,92,246,0.22); transform: translateY(-1px);
+}
+.token-btn.has-token {
+  background: rgba(16,185,129,0.12); color: #10b981; border-color: rgba(16,185,129,0.3);
+}
+
+/* ─── Rate Limit Unlock Box in Error State ──────────────────────────────── */
+.rate-limit-box {
+  margin: 20px 0 24px; padding: 18px 20px;
+  background: rgba(139,92,246,0.08); border: 1px solid rgba(139,92,246,0.25);
+  border-radius: 16px; text-align: left;
+}
+.rate-limit-banner { margin-bottom: 14px; }
+.rate-badge {
+  display: inline-block; font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+  background: var(--color-primary); color: #fff; padding: 2px 8px; border-radius: 6px; margin-bottom: 6px;
+}
+.rate-desc { font-size: 0.86rem; color: var(--color-text-secondary); line-height: 1.5; margin: 0; }
+.token-input-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.token-input {
+  flex: 1; min-width: 200px; padding: 10px 14px; font-size: 0.86rem;
+  background: var(--color-bg); color: var(--color-text-primary);
+  border: 1px solid var(--color-border); border-radius: 10px; outline: none;
+}
+.token-input:focus { border-color: var(--color-primary); }
+.token-unlock-btn, .token-save-btn {
+  padding: 10px 16px; font-size: 0.86rem; font-weight: 600;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+  color: #fff; border: none; border-radius: 10px; cursor: pointer; transition: all 0.2s;
+}
+.token-unlock-btn:hover, .token-save-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+.token-note { font-size: 0.75rem; color: var(--color-text-muted); margin: 0; }
+
+/* ─── Token Settings Modal ──────────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.65); backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px;
+}
+.modal-overlay.hidden { display: none; }
+.modal-card {
+  width: 100%; max-width: 480px; background: var(--color-surface);
+  border: 1px solid var(--color-border); border-radius: 20px; box-shadow: var(--shadow-modal);
+  overflow: hidden; animation: fadeInUp 0.25s ease;
+}
+.modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 24px; border-bottom: 1px solid var(--color-border);
+}
+.modal-title { font-size: 1.05rem; font-weight: 700; margin: 0; }
+.modal-close {
+  background: none; border: none; font-size: 1.2rem; cursor: pointer;
+  color: var(--color-text-muted); padding: 4px;
+}
+.modal-close:hover { color: var(--color-text-primary); }
+.modal-body { padding: 20px 24px; }
+.rate-status-card {
+  background: var(--color-bg); border: 1px solid var(--color-border);
+  border-radius: 12px; padding: 14px 16px; margin-bottom: 20px;
+}
+.rate-status-title { font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: var(--color-text-muted); }
+.rate-status-metric { font-size: 1.25rem; font-weight: 800; color: var(--color-text-primary); margin: 6px 0; }
+.rate-bar-track { height: 6px; background: var(--color-border); border-radius: 3px; overflow: hidden; margin-bottom: 6px; }
+.rate-bar-fill { height: 100%; background: linear-gradient(90deg, #10b981, #06b6d4); transition: width 0.3s; }
+.rate-reset-time { font-size: 0.75rem; color: var(--color-text-muted); }
+.token-config-section { display: flex; flex-direction: column; gap: 8px; }
+.token-label { font-size: 0.85rem; font-weight: 600; }
+.token-desc { font-size: 0.8rem; color: var(--color-text-secondary); margin: 0 0 4px; line-height: 1.4; }
+.token-status-msg { font-size: 0.8rem; min-height: 1.2rem; }
+.token-status-msg.success { color: #10b981; }
+.token-status-msg.error { color: #ef4444; }
+.token-remove-btn {
+  align-self: flex-start; background: none; border: 1px solid rgba(239,68,68,0.3);
+  color: #ef4444; border-radius: 8px; padding: 6px 14px; font-size: 0.78rem; font-weight: 600;
+  cursor: pointer; margin-top: 6px;
+}
+.token-remove-btn:hover { background: rgba(239,68,68,0.1); }
+

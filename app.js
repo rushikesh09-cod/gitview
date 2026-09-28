@@ -38,6 +38,7 @@ const LS_KEYS = {
   HISTORY:   'gitview_history',
   FAVORITES: 'gitview_favorites',
   CACHE:     'gitview_cache_',
+  TOKEN:     'gitview_gh_token',
 };
 
 // Linguist language colors
@@ -91,10 +92,26 @@ const DOM = {
   profileSection:    document.getElementById('profile-section'),
   loaderText:        document.getElementById('loader-text'),
 
-  // Error
+  // Error & Rate Limit
   errorTitle:        document.getElementById('error-title'),
   errorMessage:      document.getElementById('error-message'),
   retryBtn:          document.getElementById('retry-btn'),
+  rateLimitBox:      document.getElementById('rate-limit-box'),
+  errorTokenInput:   document.getElementById('error-token-input'),
+  errorTokenSaveBtn: document.getElementById('error-token-save-btn'),
+
+  // Token Modal & Nav
+  tokenBtn:          document.getElementById('token-btn'),
+  navRateLimit:      document.getElementById('nav-rate-limit'),
+  tokenModal:        document.getElementById('token-modal'),
+  closeTokenModal:   document.getElementById('close-token-modal'),
+  rateStatusText:    document.getElementById('rate-status-text'),
+  rateBarFill:       document.getElementById('rate-bar-fill'),
+  rateResetText:     document.getElementById('rate-reset-text'),
+  modalTokenInput:   document.getElementById('modal-token-input'),
+  modalTokenSave:    document.getElementById('modal-token-save'),
+  modalTokenRemove:  document.getElementById('modal-token-remove'),
+  tokenStatusMsg:    document.getElementById('token-status-msg'),
 
   // Profile
   avatar:            document.getElementById('profile-avatar'),
@@ -540,8 +557,71 @@ function showDataSourceBadge(fromCache) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// GITHUB API — FETCH FUNCTIONS
+// GITHUB API — FETCH FUNCTIONS & TOKEN MANAGEMENT
 // ═══════════════════════════════════════════════════════════════════════════════
+
+/** Build request headers including GitHub token if configured */
+function getAuthHeaders() {
+  const headers = { 'Accept': 'application/vnd.github+json' };
+  const token = localStorage.getItem(LS_KEYS.TOKEN);
+  if (token && token.trim()) {
+    headers['Authorization'] = `Bearer ${token.trim()}`;
+  }
+  return headers;
+}
+
+/** Update rate limit indicator from GitHub response headers */
+function updateRateLimitFromHeaders(res) {
+  const remaining = res.headers.get('x-ratelimit-remaining');
+  const limit     = res.headers.get('x-ratelimit-limit');
+  const resetSec  = res.headers.get('x-ratelimit-reset');
+  if (remaining !== null && limit !== null) {
+    updateRateLimitUI(parseInt(remaining, 10), parseInt(limit, 10), resetSec ? parseInt(resetSec, 10) : null);
+  }
+}
+
+/** Update the rate limit badge in navbar and modal */
+function updateRateLimitUI(remaining, limit, resetEpochSec = null) {
+  const hasToken = !!localStorage.getItem(LS_KEYS.TOKEN);
+  DOM.tokenBtn.classList.toggle('has-token', hasToken);
+
+  if (DOM.navRateLimit) {
+    DOM.navRateLimit.textContent = `${formatNumber(remaining)}/${formatNumber(limit)}`;
+  }
+
+  if (DOM.rateStatusText) {
+    DOM.rateStatusText.textContent = `${remaining.toLocaleString()} / ${limit.toLocaleString()} remaining`;
+  }
+
+  if (DOM.rateBarFill) {
+    const pct = Math.max(0, Math.min(100, Math.round((remaining / limit) * 100)));
+    DOM.rateBarFill.style.width = `${pct}%`;
+    DOM.rateBarFill.style.background = pct > 20
+      ? 'linear-gradient(90deg, #10b981, #06b6d4)'
+      : 'linear-gradient(90deg, #ef4444, #f59e0b)';
+  }
+
+  if (DOM.rateResetText && resetEpochSec) {
+    const resetDate = new Date(resetEpochSec * 1000);
+    const resetTimeStr = resetDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    DOM.rateResetText.textContent = `Quota resets at ${resetTimeStr}`;
+  }
+}
+
+/** Check rate limit using GitHub /rate_limit endpoint */
+async function checkRateLimit() {
+  try {
+    const res = await fetch(`${GITHUB_API_BASE}/rate_limit`, { headers: getAuthHeaders() });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data.resources && data.resources.core) {
+      const { remaining, limit, reset } = data.resources.core;
+      updateRateLimitUI(remaining, limit, reset);
+    }
+  } catch (e) {
+    console.warn('[GitView] Could not fetch rate limit status:', e.message);
+  }
+}
 
 /**
  * Fetch a GitHub user's public profile
@@ -549,8 +629,9 @@ function showDataSourceBadge(fromCache) {
  */
 async function fetchGitHubUser(username) {
   const res = await fetch(`${GITHUB_API_BASE}/users/${encodeURIComponent(username)}`, {
-    headers: { 'Accept': 'application/vnd.github+json' },
+    headers: getAuthHeaders(),
   });
+  updateRateLimitFromHeaders(res);
   if (res.status === 404) throw new Error('USER_NOT_FOUND');
   if (res.status === 403) throw new Error('RATE_LIMIT');
   if (res.status === 401) throw new Error('UNAUTHORIZED');
@@ -569,8 +650,9 @@ async function fetchRepositories(username) {
   while (true) {
     const url = `${GITHUB_API_BASE}/users/${encodeURIComponent(username)}/repos?per_page=${perPage}&page=${page}&type=public`;
     const res = await fetch(url, {
-      headers: { 'Accept': 'application/vnd.github+json' },
+      headers: getAuthHeaders(),
     });
+    updateRateLimitFromHeaders(res);
     if (!res.ok) break;
     const repos = await res.json();
     allRepos.push(...repos);
@@ -590,6 +672,8 @@ function handleAPIError(err, username = '') {
   let title   = 'Something Went Wrong';
   let message = 'An unexpected error occurred. Please try again later.';
 
+  if (DOM.rateLimitBox) DOM.rateLimitBox.classList.add('hidden');
+
   switch (err.message) {
     case 'USER_NOT_FOUND':
       title   = '404 — User Not Found';
@@ -597,11 +681,15 @@ function handleAPIError(err, username = '') {
       break;
     case 'RATE_LIMIT':
       title   = '403 — API Rate Limit Reached';
-      message = 'You have hit the GitHub API rate limit (60 requests/hour for unauthenticated access). Please wait a few minutes and try again.';
+      message = 'You have hit GitHub\'s unauthenticated limit (60 requests/hour). Unlock 5,000 requests/hour instantly below:';
+      if (DOM.rateLimitBox) {
+        DOM.rateLimitBox.classList.remove('hidden');
+        setTimeout(() => DOM.errorTokenInput?.focus(), 100);
+      }
       break;
     case 'UNAUTHORIZED':
-      title   = '401 — Unauthorized';
-      message = 'Unable to access the GitHub API. Please try again later.';
+      title   = '401 — Invalid GitHub Token';
+      message = 'The saved GitHub token is invalid or expired. Please check or remove your token in API settings.';
       break;
     default:
       if (!navigator.onLine) {
@@ -1802,6 +1890,85 @@ function handleHashRoute() {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// TOKEN MANAGEMENT & MODAL
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function openTokenModal() {
+  const currentToken = localStorage.getItem(LS_KEYS.TOKEN) || '';
+  if (DOM.modalTokenInput) {
+    DOM.modalTokenInput.value = currentToken ? currentToken : '';
+  }
+  if (DOM.modalTokenRemove) {
+    DOM.modalTokenRemove.classList.toggle('hidden', !currentToken);
+  }
+  if (DOM.tokenStatusMsg) {
+    DOM.tokenStatusMsg.textContent = currentToken
+      ? '✓ Token active: 5,000 requests/hour limit unlocked'
+      : 'Using unauthenticated rate limit (60 requests/hour)';
+    DOM.tokenStatusMsg.className = `token-status-msg ${currentToken ? 'success' : ''}`;
+  }
+  DOM.tokenModal.classList.remove('hidden');
+  checkRateLimit();
+}
+
+// Token button in navbar
+DOM.tokenBtn.addEventListener('click', openTokenModal);
+
+// Close modal buttons
+DOM.closeTokenModal.addEventListener('click', () => {
+  DOM.tokenModal.classList.add('hidden');
+});
+DOM.tokenModal.addEventListener('click', (e) => {
+  if (e.target === DOM.tokenModal) DOM.tokenModal.classList.add('hidden');
+});
+
+// Save token from modal
+DOM.modalTokenSave.addEventListener('click', () => {
+  const token = DOM.modalTokenInput.value.trim();
+  if (!token) {
+    showToast('Please enter a GitHub token', 'warning');
+    return;
+  }
+  localStorage.setItem(LS_KEYS.TOKEN, token);
+  showToast('✓ Token saved! 5,000 requests/hour unlocked.', 'success');
+  openTokenModal();
+  checkRateLimit();
+});
+
+// Remove token from modal
+DOM.modalTokenRemove.addEventListener('click', () => {
+  localStorage.removeItem(LS_KEYS.TOKEN);
+  DOM.modalTokenInput.value = '';
+  showToast('Token removed. Switched to public rate limit.', 'info');
+  openTokenModal();
+  checkRateLimit();
+});
+
+// Quick token unlock directly from Error Section
+DOM.errorTokenSaveBtn.addEventListener('click', () => {
+  const token = DOM.errorTokenInput.value.trim();
+  if (!token) {
+    showToast('Please paste your GitHub Personal Access Token', 'warning');
+    return;
+  }
+  localStorage.setItem(LS_KEYS.TOKEN, token);
+  showToast('✓ Token activated! 5,000 requests/hour unlocked.', 'success', 3000);
+  checkRateLimit();
+
+  const userToRetry = DOM.input.value.trim() || 'rushikesh09-cod';
+  DOM.input.value = userToRetry;
+  searchUser(userToRetry, true);
+});
+
+// Allow pressing Enter in token inputs
+DOM.errorTokenInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') DOM.errorTokenSaveBtn.click();
+});
+DOM.modalTokenInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') DOM.modalTokenSave.click();
+});
+
 function init() {
   // Apply saved or system theme
   initTheme();
@@ -1811,6 +1978,9 @@ function init() {
 
   // Render search history
   renderSearchHistory();
+
+  // Check rate limit quota
+  checkRateLimit();
 
   // Focus search input
   DOM.input.focus();
@@ -1823,4 +1993,5 @@ window.addEventListener('load', init);
 
 // Handle hash changes (back/forward navigation)
 window.addEventListener('hashchange', handleHashRoute);
+
 

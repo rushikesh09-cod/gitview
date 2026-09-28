@@ -54,6 +54,10 @@
           <a href="#favorites-section" class="nav-link" id="nav-favorites"  role="listitem">Favorites</a>
         </div>
         <div class="nav-actions">
+          <button id="token-btn" class="token-btn" aria-label="API Token Settings" title="GitHub API Token & Rate Limit">
+            <span class="token-btn-icon">🔑</span>
+            <span class="token-btn-text" id="nav-rate-limit">Rate Limit</span>
+          </button>
           <button id="theme-toggle" class="theme-toggle" aria-label="Toggle theme" title="Toggle dark/light mode">
             <span class="theme-icon-dark">🌙</span>
             <span class="theme-icon-light">☀️</span>
@@ -142,6 +146,20 @@
             </div>
             <h2 class="error-title" id="error-title">User Not Found</h2>
             <p class="error-message" id="error-message">We couldn't find that GitHub user.</p>
+
+            <!-- Instant Token Unlock Card for Rate Limit -->
+            <div id="rate-limit-box" class="rate-limit-box hidden">
+              <div class="rate-limit-banner">
+                <span class="rate-badge">⚡ Instant Unlock</span>
+                <p class="rate-desc">GitHub allows <strong>60 requests/hr</strong> without a token, but <strong>5,000 requests/hr</strong> with a token. Paste your token to unlock right now:</p>
+              </div>
+              <div class="token-input-row">
+                <input type="password" id="error-token-input" class="token-input" placeholder="Paste token here (ghp_...)" autocomplete="off" />
+                <button type="button" id="error-token-save-btn" class="token-unlock-btn">⚡ Unlock &amp; Retry</button>
+              </div>
+              <p class="token-note">🔒 Saved only in your browser's localStorage. Never sent anywhere except GitHub API.</p>
+            </div>
+
             <button class="retry-btn" id="retry-btn">← Try Again</button>
           </div>
         </section>
@@ -547,10 +565,38 @@
           <strong>GitView 2.0</strong>
         </div>
         <p>Powered by the <a href="https://docs.github.com/en/rest" target="_blank" rel="noopener noreferrer">GitHub Public REST API</a> · Contribution heatmap via <a href="https://ghchart.rshah.org" target="_blank" rel="noopener noreferrer">ghchart.rshah.org</a></p>
-        <p class="footer-note">Not affiliated with GitHub, Inc. · For educational &amp; portfolio use.</p>
-      </footer>
-
     </div><!-- /.app-wrapper -->
+
+    <!-- ═══════════════════════════════════════════ TOKEN MODAL -->
+    <div id="token-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="token-modal-title">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3 id="token-modal-title" class="modal-title">🔑 GitHub API Token &amp; Rate Limit</h3>
+          <button id="close-token-modal" class="modal-close" aria-label="Close modal">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="rate-status-card" id="rate-status-card">
+            <div class="rate-status-title">Current Rate Limit Status</div>
+            <div class="rate-status-metric" id="rate-status-text">Checking rate limit...</div>
+            <div class="rate-bar-track">
+              <div class="rate-bar-fill" id="rate-bar-fill" style="width: 100%;"></div>
+            </div>
+            <div class="rate-reset-time" id="rate-reset-text"></div>
+          </div>
+
+          <div class="token-config-section">
+            <label for="modal-token-input" class="token-label">Personal Access Token (classic)</label>
+            <p class="token-desc">Provides <strong>5,000 requests/hour</strong> instead of the default 60. Stored safely in your browser.</p>
+            <div class="token-input-row">
+              <input type="password" id="modal-token-input" class="token-input" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" autocomplete="off" />
+              <button type="button" id="modal-token-save" class="token-save-btn">Save Token</button>
+            </div>
+            <div id="token-status-msg" class="token-status-msg"></div>
+            <button type="button" id="modal-token-remove" class="token-remove-btn hidden">Remove Token</button>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <script src="app.js"></script>
   </body>
