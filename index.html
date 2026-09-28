@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GitView 2.0 — GitHub Developer Analytics Platform</title>
+    <meta name="description" content="GitView 2.0: A full GitHub Developer Analytics Platform. Search profiles, view repos, language analytics, contribution heatmap, user comparison, favorites and more." />
+    <meta name="keywords" content="GitHub, profile viewer, analytics, repositories, developer, open source, contribution heatmap" />
+    <meta property="og:title" content="GitView 2.0 — GitHub Developer Analytics Platform" />
+    <meta property="og:description" content="Explore GitHub developer profiles with full analytics, charts, comparison and more." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+    <!-- jsPDF CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <!-- Top Progress Bar -->
+    <div id="progress-bar" class="progress-bar" aria-hidden="true"><div class="progress-fill"></div></div>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="toast-container" role="status" aria-live="polite" aria-atomic="true"></div>
+
+    <!-- Back to Top -->
+    <button id="back-to-top" class="back-to-top hidden" aria-label="Back to top">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 15l-6-6-6 6"/></svg>
+    </button>
+
+    <!-- Animated background orbs -->
+    <div class="bg-orbs" aria-hidden="true">
+      <div class="orb orb-1"></div>
+      <div class="orb orb-2"></div>
+      <div class="orb orb-3"></div>
+    </div>
+
+    <div class="app-wrapper">
+
+      <!-- ═══════════════════════════════════════════════════════ NAVBAR -->
+      <nav class="navbar" id="navbar" role="navigation" aria-label="Main navigation">
+        <div class="nav-logo">
+          <svg class="logo-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/>
+          </svg>
+          <span class="logo-text">GitView <span class="version-badge">2.0</span></span>
+        </div>
+        <div class="nav-links" role="list">
+          <a href="#profile-section"   class="nav-link" id="nav-profile"    role="listitem">Profile</a>
+          <a href="#repos-section"     class="nav-link" id="nav-repos"      role="listitem">Repos</a>
+          <a href="#analytics-section" class="nav-link" id="nav-analytics"  role="listitem">Analytics</a>
+          <a href="#compare-section"   class="nav-link" id="nav-compare"    role="listitem">Compare</a>
+          <a href="#favorites-section" class="nav-link" id="nav-favorites"  role="listitem">Favorites</a>
+        </div>
+        <div class="nav-actions">
+          <button id="theme-toggle" class="theme-toggle" aria-label="Toggle theme" title="Toggle dark/light mode">
+            <span class="theme-icon-dark">🌙</span>
+            <span class="theme-icon-light">☀️</span>
+          </button>
+          <button class="nav-hamburger" id="nav-hamburger" aria-label="Toggle navigation menu">
+            <span></span><span></span><span></span>
+          </button>
+        </div>
+      </nav>
+
+      <!-- ═══════════════════════════════════════════════════════ HERO / SEARCH -->
+      <header class="app-header" id="hero-section">
+        <div class="hero-content">
+          <h1 class="hero-title">Explore GitHub <span class="gradient-text">Developers</span></h1>
+          <p class="hero-subtitle">Search any GitHub profile and get full analytics, repos, language insights, contribution activity and more.</p>
+        </div>
+
+        <div class="search-container">
+          <form id="search-form" class="search-form" role="search" aria-label="GitHub user search">
+            <div class="search-input-wrapper">
+              <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+              </svg>
+              <input type="text" id="username-input" class="search-input"
+                placeholder="Search GitHub username..." autocomplete="off" spellcheck="false"
+                aria-label="Enter GitHub username" maxlength="39" />
+              <button type="submit" id="search-btn" class="search-btn" aria-label="Search">
+                <span class="btn-text">Explore</span>
+                <svg class="btn-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                  <path d="M5 12h14M12 5l7 7-7 7"/>
+                </svg>
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Cache/Data freshness badge -->
+        <div id="data-source-badge" class="data-source-badge hidden"></div>
+
+        <!-- Recent Searches -->
+        <div id="recent-searches-bar" class="recent-searches-bar hidden">
+          <span class="chip-label">🕐 Recent:</span>
+          <div id="recent-chips" class="recent-chips"></div>
+          <button id="clear-history-btn" class="clear-history-btn" aria-label="Clear search history">Clear</button>
+        </div>
+
+        <!-- Quick Suggestions -->
+        <div class="suggestion-chips" aria-label="Quick search suggestions">
+          <span class="chip-label">Try:</span>
+          <button class="chip" data-username="torvalds"    id="chip-torvalds">torvalds</button>
+          <button class="chip" data-username="gaearon"     id="chip-gaearon">gaearon</button>
+          <button class="chip" data-username="sindresorhus" id="chip-sindresorhus">sindresorhus</button>
+          <button class="chip" data-username="addyosmani"  id="chip-addyosmani">addyosmani</button>
+        </div>
+      </header>
+
+      <!-- ═══════════════════════════════════════════════════════ MAIN -->
+      <main id="main-content" class="main-content">
+
+        <!-- Loading State -->
+        <section id="loading-section" class="loading-section hidden" aria-live="polite" aria-label="Loading profile">
+          <div class="skeleton-profile">
+            <div class="skeleton-avatar"></div>
+            <div class="skeleton-lines">
+              <div class="skeleton-line w-40"></div>
+              <div class="skeleton-line w-60"></div>
+              <div class="skeleton-line w-80"></div>
+            </div>
+          </div>
+          <div class="skeleton-stats">
+            <div class="skeleton-stat"></div>
+            <div class="skeleton-stat"></div>
+            <div class="skeleton-stat"></div>
+            <div class="skeleton-stat"></div>
+          </div>
+          <p class="loader-text" id="loader-text">Fetching profile...</p>
+        </section>
+
+        <!-- Error State -->
+        <section id="error-section" class="error-section hidden" aria-live="assertive" aria-label="Error">
+          <div class="error-card">
+            <div class="error-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/>
+              </svg>
+            </div>
+            <h2 class="error-title" id="error-title">User Not Found</h2>
+            <p class="error-message" id="error-message">We couldn't find that GitHub user.</p>
+            <button class="retry-btn" id="retry-btn">← Try Again</button>
+          </div>
+        </section>
+
+        <!-- Welcome State -->
+        <section id="welcome-section" class="welcome-section" aria-label="Welcome">
+          <div class="welcome-card">
+            <div class="welcome-icon-wrapper">
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/>
+              </svg>
+            </div>
+            <h2 class="welcome-title">GitHub Developer Analytics</h2>
+            <p class="welcome-desc">Search any GitHub username to view their full developer profile, repository analytics, language breakdown, contribution heatmap and more.</p>
+            <div class="welcome-features">
+              <span class="welcome-feature">📊 Language Analytics</span>
+              <span class="welcome-feature">📅 Contribution Heatmap</span>
+              <span class="welcome-feature">👥 User Comparison</span>
+              <span class="welcome-feature">⭐ Pinned Repos</span>
+              <span class="welcome-feature">📄 PDF Export</span>
+              <span class="welcome-feature">❤️ Favorites</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════════ PROFILE SECTION -->
+        <section id="profile-section" class="profile-section hidden" aria-label="GitHub profile">
+
+          <!-- Profile Card -->
+          <article class="profile-card" id="profile-card">
+            <div class="profile-header-bg" aria-hidden="true"></div>
+            <div class="profile-content">
+              <div class="avatar-wrapper">
+                <img id="profile-avatar" class="profile-avatar" src="" alt="" loading="lazy" />
+                <div class="avatar-glow" aria-hidden="true"></div>
+              </div>
+              <div class="profile-info">
+                <div class="profile-name-row">
+                  <h2 id="profile-name" class="profile-name"></h2>
+                  <a id="profile-link" class="profile-gh-link" href="#" target="_blank" rel="noopener noreferrer" aria-label="View on GitHub">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/>
+                      <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
+                    </svg>
+                  </a>
+                </div>
+                <p id="profile-login" class="profile-login"></p>
+                <p id="profile-bio" class="profile-bio"></p>
+                <div class="profile-meta" id="profile-meta"></div>
+              </div>
+            </div>
+
+            <!-- Profile Action Buttons -->
+            <div class="profile-actions">
+              <button id="favorite-btn" class="action-btn favorite-btn" aria-label="Add to favorites">
+                <span class="fav-icon-empty">☆</span>
+                <span class="fav-icon-filled hidden">★</span>
+                <span class="fav-label">Add to Favorites</span>
+              </button>
+              <button id="copy-link-btn" class="action-btn copy-btn" aria-label="Copy profile link">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/>
+                  <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/>
+                </svg>
+                Copy GitView Link
+              </button>
+              <button id="refresh-btn" class="action-btn refresh-btn" aria-label="Refresh data">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <polyline points="23 4 23 10 17 10"/>
+                  <path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/>
+                </svg>
+                Refresh Data
+              </button>
+              <button id="export-pdf-btn" class="action-btn export-btn" aria-label="Download PDF report">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                  <line x1="16" y1="13" x2="8" y2="13"/>
+                  <line x1="16" y1="17" x2="8" y2="17"/>
+                </svg>
+                📄 PDF Report
+              </button>
+            </div>
+
+            <!-- Stats Grid -->
+            <div class="stats-grid" id="stats-grid" role="list" aria-label="Profile statistics">
+              <div class="stat-card" role="listitem" title="Public Repositories">
+                <div class="stat-icon repos-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v18H3zM3 9h18M9 21V9"/></svg>
+                </div>
+                <div class="stat-body">
+                  <span id="stat-repos" class="stat-value">—</span>
+                  <span class="stat-label">Repositories</span>
+                </div>
+              </div>
+              <div class="stat-card" role="listitem" title="Followers">
+                <div class="stat-icon followers-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
+                    <circle cx="9" cy="7" r="4"/>
+                    <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>
+                  </svg>
+                </div>
+                <div class="stat-body">
+                  <span id="stat-followers" class="stat-value">—</span>
+                  <span class="stat-label">Followers</span>
+                </div>
+              </div>
+              <div class="stat-card" role="listitem" title="Following">
+                <div class="stat-icon following-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/>
+                    <circle cx="9" cy="7" r="4"/>
+                    <line x1="19" y1="8" x2="19" y2="14"/>
+                    <line x1="22" y1="11" x2="16" y2="11"/>
+                  </svg>
+                </div>
+                <div class="stat-body">
+                  <span id="stat-following" class="stat-value">—</span>
+                  <span class="stat-label">Following</span>
+                </div>
+              </div>
+              <div class="stat-card" role="listitem" title="Public Gists">
+                <div class="stat-icon gists-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                    <line x1="16" y1="13" x2="8" y2="13"/>
+                    <line x1="16" y1="17" x2="8" y2="17"/>
+                  </svg>
+                </div>
+                <div class="stat-body">
+                  <span id="stat-gists" class="stat-value">—</span>
+                  <span class="stat-label">Gists</span>
+                </div>
+              </div>
+              <div class="stat-card" role="listitem" title="Total Stars across all repositories">
+                <div class="stat-icon stars-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                  </svg>
+                </div>
+                <div class="stat-body">
+                  <span id="stat-stars" class="stat-value">—</span>
+                  <span class="stat-label">Total Stars</span>
+                </div>
+              </div>
+              <div class="stat-card" role="listitem" title="Total Forks across all repositories">
+                <div class="stat-icon forks-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="6" y1="3" x2="6" y2="15"/>
+                    <circle cx="18" cy="6" r="3"/>
+                    <circle cx="6" cy="18" r="3"/>
+                    <circle cx="6" cy="6" r="3"/>
+                    <path d="M18 9a9 9 0 01-9 9"/>
+                  </svg>
+                </div>
+                <div class="stat-body">
+                  <span id="stat-forks" class="stat-value">—</span>
+                  <span class="stat-label">Total Forks</span>
+                </div>
+              </div>
+              <div class="stat-card" role="listitem" title="Number of programming languages used">
+                <div class="stat-icon langs-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="16 18 22 12 16 6"/>
+                    <polyline points="8 6 2 12 8 18"/>
+                  </svg>
+                </div>
+                <div class="stat-body">
+                  <span id="stat-langs" class="stat-value">—</span>
+                  <span class="stat-label">Languages</span>
+                </div>
+              </div>
+              <div class="stat-card" role="listitem" title="Most starred repository">
+                <div class="stat-icon top-repo-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
+                    <polyline points="17 6 23 6 23 12"/>
+                  </svg>
+                </div>
+                <div class="stat-body">
+                  <span id="stat-top-repo" class="stat-value stat-value-sm">—</span>
+                  <span class="stat-label">Top Repo</span>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <!-- ═══════════════════════════════════════ PINNED REPOS -->
+          <section id="pinned-section" class="pinned-section hidden" aria-label="Pinned Repositories">
+            <div class="section-header">
+              <h3 class="section-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 00-1.11-1.79l-1.78-.9A2 2 0 0115 10.76V6h1a2 2 0 000-4H8a2 2 0 000 4h1v4.76a2 2 0 01-1.11 1.79l-1.78.9A2 2 0 005 15.24z"/>
+                </svg>
+                Pinned Repositories
+              </h3>
+            </div>
+            <div id="pinned-grid" class="pinned-grid"></div>
+            <p id="pinned-note" class="pinned-note hidden">
+              ℹ️ Pinned repositories require the GitHub GraphQL API with authentication and cannot be accessed without a backend. Showing top starred repositories instead.
+            </p>
+          </section>
+
+          <!-- ═══════════════════════════════════════ CONTRIBUTION HEATMAP -->
+          <section id="heatmap-section" class="heatmap-section hidden" aria-label="Contribution Activity">
+            <div class="section-header">
+              <h3 class="section-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                  <line x1="16" y1="2" x2="16" y2="6"/>
+                  <line x1="8" y1="2" x2="8" y2="6"/>
+                  <line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+                Contribution Activity
+              </h3>
+              <span class="section-badge">via ghchart.rshah.org</span>
+            </div>
+            <div class="heatmap-wrapper">
+              <div class="heatmap-legend">
+                <span class="legend-label">Less</span>
+                <span class="legend-box" style="opacity:0.15"></span>
+                <span class="legend-box" style="opacity:0.35"></span>
+                <span class="legend-box" style="opacity:0.6"></span>
+                <span class="legend-box" style="opacity:0.85"></span>
+                <span class="legend-box" style="opacity:1"></span>
+                <span class="legend-label">More</span>
+              </div>
+              <div class="heatmap-img-container">
+                <img id="heatmap-img" src="" alt="GitHub contribution heatmap" class="heatmap-img" loading="lazy" />
+                <div id="heatmap-fallback" class="heatmap-fallback hidden">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                    <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/>
+                  </svg>
+                  <p>Contribution heatmap is temporarily unavailable. Visit the user's GitHub profile to view contributions.</p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ═══════════════════════════════════════ REPOSITORIES -->
+          <section id="repos-section" class="repos-section" aria-label="Repository Explorer">
+            <div class="section-header">
+              <h3 class="section-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M3 3h18v18H3zM3 9h18M9 21V9"/>
+                </svg>
+                Repository Explorer
+              </h3>
+            </div>
+
+            <!-- Advanced Filters -->
+            <div class="repo-filters" id="repo-filters">
+              <div class="filter-row">
+                <div class="filter-group filter-search-group">
+                  <svg class="filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+                  </svg>
+                  <input type="text" id="repo-search" class="filter-input" placeholder="Search repositories..." aria-label="Search repositories" />
+                </div>
+                <select id="filter-language" class="filter-select" aria-label="Filter by language">
+                  <option value="">All Languages</option>
+                </select>
+                <select id="filter-type" class="filter-select" aria-label="Filter by type">
+                  <option value="">All Types</option>
+                  <option value="original">Original Only</option>
+                  <option value="fork">Forks Only</option>
+                </select>
+                <select id="filter-stars" class="filter-select" aria-label="Filter by minimum stars">
+                  <option value="0">Any Stars</option>
+                  <option value="5">5+ Stars</option>
+                  <option value="10">10+ Stars</option>
+                  <option value="50">50+ Stars</option>
+                  <option value="100">100+ Stars</option>
+                </select>
+                <select id="sort-select" class="filter-select" aria-label="Sort repositories by">
+                  <option value="updated">Recently Updated</option>
+                  <option value="stars">Most Stars</option>
+                  <option value="forks">Most Forks</option>
+                  <option value="name">Name A–Z</option>
+                  <option value="name-desc">Name Z–A</option>
+                </select>
+                <button id="reset-filters-btn" class="reset-filters-btn" aria-label="Reset all filters">Reset</button>
+              </div>
+              <div class="filter-results-info" id="filter-results-info"></div>
+            </div>
+
+            <!-- Repo skeleton -->
+            <div id="repos-skeleton" class="repos-grid hidden" aria-hidden="true">
+              <div class="repo-skeleton"></div><div class="repo-skeleton"></div>
+              <div class="repo-skeleton"></div><div class="repo-skeleton"></div>
+              <div class="repo-skeleton"></div><div class="repo-skeleton"></div>
+            </div>
+
+            <div id="repos-grid" class="repos-grid" role="list" aria-label="User repositories"></div>
+
+            <div id="repos-empty" class="repos-empty hidden">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                <path d="M3 3h18v18H3zM3 9h18M9 21V9"/>
+              </svg>
+              <p id="repos-empty-msg">No repositories match your filters.</p>
+            </div>
+
+            <button id="load-more-btn" class="load-more-btn hidden">Load More Repositories</button>
+          </section>
+
+          <!-- ═══════════════════════════════════════ ANALYTICS -->
+          <section id="analytics-section" class="analytics-section hidden" aria-label="Language Analytics">
+            <div class="section-header">
+              <h3 class="section-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <line x1="18" y1="20" x2="18" y2="10"/>
+                  <line x1="12" y1="20" x2="12" y2="4"/>
+                  <line x1="6" y1="20" x2="6" y2="14"/>
+                </svg>
+                Programming Language Analytics
+              </h3>
+            </div>
+            <div class="analytics-grid">
+              <div class="analytics-chart-card">
+                <h4 class="analytics-card-title">Language Distribution</h4>
+                <div class="chart-container">
+                  <canvas id="lang-chart" aria-label="Language distribution pie chart" role="img"></canvas>
+                </div>
+              </div>
+              <div class="analytics-bars-card">
+                <h4 class="analytics-card-title">Repository Breakdown</h4>
+                <div id="lang-bars" class="lang-bars"></div>
+              </div>
+            </div>
+            <div class="analytics-summary" id="analytics-summary"></div>
+          </section>
+
+        </section>
+        <!-- end #profile-section -->
+
+        <!-- ═══════════════════════════════════════════ FAVORITES SECTION -->
+        <section id="favorites-section" class="favorites-section" aria-label="Favorite Profiles">
+          <div class="section-header">
+            <h3 class="section-title">
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+              </svg>
+              Favorite Profiles
+            </h3>
+          </div>
+          <div id="favorites-grid" class="favorites-grid"></div>
+          <div id="favorites-empty" class="favorites-empty">
+            <p>No favorites yet. Search a user and click <strong>☆ Add to Favorites</strong> to save them here.</p>
+          </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════════ COMPARE SECTION -->
+        <section id="compare-section" class="compare-section" aria-label="Compare GitHub Users">
+          <div class="section-header">
+            <h3 class="section-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+                <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>
+              </svg>
+              Compare GitHub Users
+            </h3>
+            <p class="section-subtitle">Factual comparison only — no winner declared.</p>
+          </div>
+
+          <div class="compare-inputs">
+            <div class="compare-input-group">
+              <label for="compare-user1" class="compare-label">GitHub User 1</label>
+              <input type="text" id="compare-user1" class="compare-input" placeholder="username..." maxlength="39" aria-label="First GitHub username to compare" />
+            </div>
+            <div class="compare-vs-badge" aria-hidden="true">VS</div>
+            <div class="compare-input-group">
+              <label for="compare-user2" class="compare-label">GitHub User 2</label>
+              <input type="text" id="compare-user2" class="compare-input" placeholder="username..." maxlength="39" aria-label="Second GitHub username to compare" />
+            </div>
+          </div>
+          <button id="compare-btn" class="compare-submit-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>
+            </svg>
+            Compare Users
+          </button>
+
+          <div id="compare-loading" class="compare-loading hidden">
+            <div class="loader-ring"><div></div><div></div><div></div><div></div></div>
+            <p>Fetching profiles...</p>
+          </div>
+          <div id="compare-result" class="compare-result hidden"></div>
+        </section>
+
+      </main>
+
+      <!-- ═══════════════════════════════════════════ FOOTER -->
+      <footer class="app-footer">
+        <div class="footer-logo">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20" aria-hidden="true">
+            <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/>
+          </svg>
+          <strong>GitView 2.0</strong>
+        </div>
+        <p>Powered by the <a href="https://docs.github.com/en/rest" target="_blank" rel="noopener noreferrer">GitHub Public REST API</a> · Contribution heatmap via <a href="https://ghchart.rshah.org" target="_blank" rel="noopener noreferrer">ghchart.rshah.org</a></p>
+        <p class="footer-note">Not affiliated with GitHub, Inc. · For educational &amp; portfolio use.</p>
+      </footer>
+
+    </div><!-- /.app-wrapper -->
+
+    <script src="app.js"></script>
+  </body>
+</html>
