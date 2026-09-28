@@ -1729,10 +1729,29 @@ DOM.navHamburger.addEventListener('click', () => {
   DOM.navLinks.classList.toggle('mobile-open');
 });
 
-// Close nav on link click
+// Close nav on link click and smooth scroll without triggering username search
 DOM.navLinks.addEventListener('click', (e) => {
-  if (e.target.classList.contains('nav-link')) {
-    DOM.navLinks.classList.remove('mobile-open');
+  const link = e.target.closest('.nav-link');
+  if (!link) return;
+
+  DOM.navLinks.classList.remove('mobile-open');
+
+  const targetId = (link.getAttribute('href') || '').replace('#', '');
+  if (!targetId) return;
+
+  const targetEl = document.getElementById(targetId);
+  if (targetEl) {
+    e.preventDefault();
+
+    // Check if user is trying to view profile/repos/analytics before searching
+    const requiresProfile = ['profile-section', 'repos-section', 'analytics-section'];
+    if (requiresProfile.includes(targetId) && (!state.currentUser || DOM.profileSection.classList.contains('hidden'))) {
+      showToast('Search for a GitHub user first to view this section', 'info', 3000);
+      DOM.input.focus();
+      return;
+    }
+
+    targetEl.scrollIntoView({ behavior: 'smooth' });
   }
 });
 
@@ -1750,8 +1769,38 @@ document.addEventListener('keydown', (e) => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// INITIALISATION
+// INITIALISATION & HASH ROUTING
 // ═══════════════════════════════════════════════════════════════════════════════
+
+const INTERNAL_SECTION_IDS = new Set([
+  'profile-section', 'repos-section', 'analytics-section',
+  'compare-section', 'favorites-section', 'hero-section',
+  'welcome-section', 'loading-section', 'error-section', 'pinned-section'
+]);
+
+function handleHashRoute() {
+  const rawHash = decodeURIComponent(location.hash.slice(1)).trim();
+  if (!rawHash) return;
+
+  // Ignore internal section anchor IDs
+  if (INTERNAL_SECTION_IDS.has(rawHash) || document.getElementById(rawHash)) {
+    const el = document.getElementById(rawHash);
+    if (el && !el.classList.contains('hidden')) {
+      el.scrollIntoView({ behavior: 'smooth' });
+    }
+    return;
+  }
+
+  // Auto-search user from hash: e.g. #torvalds or #u/torvalds
+  let username = rawHash;
+  if (username.startsWith('u/')) username = username.slice(2);
+  else if (username.startsWith('user=')) username = username.slice(5);
+
+  if (username && isValidUsername(username) && !INTERNAL_SECTION_IDS.has(username)) {
+    DOM.input.value = username;
+    searchUser(username);
+  }
+}
 
 function init() {
   // Apply saved or system theme
@@ -1766,21 +1815,12 @@ function init() {
   // Focus search input
   DOM.input.focus();
 
-  // Auto-load from URL hash: index.html#torvalds
-  const hashUser = decodeURIComponent(location.hash.slice(1));
-  if (hashUser && isValidUsername(hashUser)) {
-    DOM.input.value = hashUser;
-    searchUser(hashUser);
-  }
+  // Process initial hash route if present
+  handleHashRoute();
 }
 
 window.addEventListener('load', init);
 
 // Handle hash changes (back/forward navigation)
-window.addEventListener('hashchange', () => {
-  const hashUser = decodeURIComponent(location.hash.slice(1));
-  if (hashUser && isValidUsername(hashUser)) {
-    DOM.input.value = hashUser;
-    searchUser(hashUser);
-  }
-});
+window.addEventListener('hashchange', handleHashRoute);
+
